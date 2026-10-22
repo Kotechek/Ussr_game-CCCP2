@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>СССР: Тайкун</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; height:100dvh; overflow:hidden; overscroll-behavior:none; }
+body {
+  background:#111; font-family:'Courier New', monospace; color:#e0e0e0;
+  display:flex; justify-content:center; align-items:center;
+  user-select:none; position:fixed; inset:0;
+}
+#game {
+  width:100%; max-width:420px; height:100%; height:100dvh;
+  background:linear-gradient(180deg,#1f1313 0%,#0f0808 100%);
+  display:flex; flex-direction:column;
+  border-left:2px solid #8b0000; border-right:2px solid #8b0000;
+  position:relative; overflow:hidden;
+}
+/* HEADER */
+#header {
+  background:linear-gradient(180deg,#8b0000,#5c0000);
+  padding:4px 8px; text-align:center;
+  border-bottom:2px solid #ffd700;
+  flex-shrink:0; display:flex; justify-content:space-between; align-items:center;
+}
+#header .title { font-size:12px; color:#ffd700; letter-spacing:1px; font-weight:bold; }
+#header .era { font-size:8px; color:#ffcc00; }
+#header .prestige-badge { font-size:10px; color:#ffd700; background:#3a0000; padding:2px 6px; border-radius:10px; border:1px solid #ffd700; }
+/* RESOURCES */
+#resources {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:2px;
+  padding:3px; background:#1a0f0f; border-bottom:1px solid #5c0000; flex-shrink:0;
+}
+.res {
+  background:#2a1515; border:1px solid #4a0000; border-radius:3px;
+  padding:2px 3px; font-size:9px; display:flex; flex-direction:column;
+  align-items:center; line-height:1.1;
+}
+.res .row { display:flex; align-items:center; gap:2px; }
+.res .icon { font-size:10px; }
+.res .val { color:#ffd700; font-weight:bold; font-size:10px; }
+.res .rate { font-size:7px; color:#7f7; }
+/* CONTENT */
+#content {
+  flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
+  -webkit-overflow-scrolling:touch; padding:4px;
+  display:flex; flex-direction:column; gap:3px;
+}
+.bld {
+  background:#2a1515; border:1px solid #4a0000; border-left:3px solid #8b0000;
+  border-radius:3px; padding:5px 6px;
+  display:flex; justify-content:space-between; align-items:center; gap:5px; flex-shrink:0;
+}
+.bld.afford { border-left-color:#4caf50; }
+.bld .info { flex:1; min-width:0; }
+.bld .name { font-size:10px; font-weight:bold; color:#ffd700; display:flex; align-items:center; gap:3px; }
+.bld .desc { font-size:7px; color:#aaa; margin-top:1px; }
+.bld button {
+  background:linear-gradient(180deg,#8b0000,#5c0000); color:#ffd700;
+  border:1px solid #ffd700; border-radius:3px; padding:4px 5px;
+  font-family:inherit; font-size:8px; font-weight:bold; min-width:52px; flex-shrink:0;
+}
+.bld button:disabled { background:#333; color:#666; border-color:#555; }
+.bld button:active:not(:disabled) { transform:scale(0.95); }
+.section-title {
+  font-size:9px; color:#ff6b6b; text-transform:uppercase; letter-spacing:1px;
+  padding:3px 2px 1px; border-bottom:1px solid #5c0000; margin-top:2px;
+}
+.card {
+  background:#2a1515; border:1px solid #4a0000; border-radius:4px;
+  padding:6px; font-size:9px; line-height:1.4;
+}
+.card .h { font-size:10px; color:#ffd700; font-weight:bold; margin-bottom:2px; }
+.card .text { color:#ccc; font-size:8px; }
+/* TABS */
+#tabs {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
+  padding:3px; background:#0f0808; border-top:1px solid #5c0000; flex-shrink:0;
+}
+#tabs button {
+  background:#2a1515; color:#aaa; border:1px solid #4a0000;
+  border-radius:3px; padding:5px 1px; font-family:inherit;
+  font-size:8px; font-weight:bold; display:flex; flex-direction:column;
+  align-items:center; gap:1px; cursor:pointer;
+}
+#tabs button .ti { font-size:13px; line-height:1; }
+#tabs button.active { background:#8b0000; color:#ffd700; border-color:#ffd700; }
+#tabs button:active { transform:scale(0.95); }
+/* FOOTER */
+#footer {
+  padding:3px; background:#0f0808; display:flex; gap:3px; flex-shrink:0;
+  padding-bottom:calc(3px + env(safe-area-inset-bottom));
+}
+#footer button {
+  flex:1; background:linear-gradient(180deg,#5c0000,#3a0000); color:#ffd700;
+  border:1px solid #8b0000; border-radius:3px; padding:5px 2px;
+  font-family:inherit; font-size:8px; font-weight:bold;
+}
+#footer button:active { transform:scale(0.95); }
+#footer button.prestige { background:linear-gradient(180deg,#b8860b,#8b6508); border-color:#ffd700; color:#fff; }
+/* LOG & TOAST */
+#log {
+  position:absolute; bottom:70px; left:6px; right:6px; max-height:40px;
+  overflow:hidden; pointer-events:none; font-size:7px; color:#4caf50;
+  text-shadow:1px 1px 2px #000; z-index:5;
+}
+#log div { animation:fade 4s forwards; }
+@keyframes fade { 0%{opacity:1;} 100%{opacity:0;} }
+#toast {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+  background:rgba(139,0,0,0.97); border:2px solid #ffd700; color:#ffd700;
+  padding:8px 14px; border-radius:8px; font-size:11px; font-weight:bold;
+  text-align:center; pointer-events:none; transition:transform 0.3s; z-index:10; max-width:85%;
+}
+#toast.show { transform:translate(-50%,-50%) scale(1); }
+/* FLOATING STALIN BUTTON */
+#stalin-fab {
+  position:absolute; bottom:105px; right:8px; z-index:15;
+  display:flex; flex-direction:column; align-items:center; gap:1px;
+  background:linear-gradient(180deg,#c62828,#8b0000);
+  border:2px solid #ffd700; border-radius:50px;
+  padding:6px 10px; cursor:pointer;
+  box-shadow:0 0 12px rgba(255,215,0,0.6);
+  animation:pulse 2s infinite;
+}
+#stalin-fab:active { transform:scale(0.93); }
+#stalin-fab .fab-av { font-size:20px; line-height:1; }
+#stalin-fab .fab-label { font-size:7px; color:#ffd700; font-weight:bold; white-space:nowrap; }
+#stalin-fab .fab-badge {
+  position:absolute; top:-4px; right:-4px;
+  background:#ffd700; color:#8b0000; font-size:8px; font-weight:bold;
+  border-radius:10px; min-width:14px; height:14px; display:none;
+  align-items:center; justify-content:center; padding:0 3px;
+}
+#stalin-fab .fab-badge.show { display:flex; }
+@keyframes pulse {
+  0%,100% { box-shadow:0 0 8px rgba(255,215,0,0.5); }
+  50% { box-shadow:0 0 18px rgba(255,215,0,0.95); }
+}
+/* MODAL */
+.modal-bg {
+  position:absolute; inset:0; background:rgba(0,0,0,0.85);
+  z-index:20; display:none; align-items:flex-end; justify-content:center;
+}
+.modal-bg.show { display:flex; }
+.modal {
+  background:linear-gradient(180deg,#2a1515,#1a0f0f);
+  border:2px solid #ffd700; border-radius:8px 8px 0 0;
+  width:100%; max-height:85%; display:flex; flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.modal-head {
+  background:linear-gradient(180deg,#8b0000,#5c0000);
+  padding:6px 10px; display:flex; justify-content:space-between; align-items:center;
+  border-bottom:2px solid #ffd700; border-radius:6px 6px 0 0;
+}
+.modal-head .mh-title { font-size:11px; color:#ffd700; font-weight:bold; }
+.modal-head .mh-close {
+  background:#3a0000; color:#ffd700; border:1px solid #ffd700;
+  border-radius:3px; padding:2px 8px; font-family:inherit; font-size:10px; font-weight:bold;
+}
+.modal-body {
+  flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px;
+  -webkit-overflow-scrolling:touch;
+}
+/* CHAT */
+.chat-msg { display:flex; gap:5px; align-items:flex-start; margin-bottom:2px; }
+.chat-msg .avatar {
+  width:26px; height:26px; border-radius:50%; background:#3a0000;
+  border:1px solid #ffd700; display:flex; align-items:center; justify-content:center;
+  font-size:14px; flex-shrink:0;
+}
+.chat-msg .bubble {
+  background:#2a1515; border:1px solid #4a0000; border-radius:8px;
+  padding:5px 8px; font-size:9px; line-height:1.4; color:#e0e0e0;
+  max-width:calc(100% - 35px);
+}
+.chat-msg.stalin .bubble { background:#3a1010; border-color:#8b0000; color:#ffd700; }
+.chat-msg.stalin .avatar { background:#8b0000; }
+.chat-msg.kosygin .bubble { background:#101a2a; border-color:#1e4a7a; color:#9ecbff; }
+.chat-msg.kosygin .avatar { background:#1e4a7a; }
+.chat-msg .sender { font-size:7px; color:#ff6b6b; margin-bottom:1px; }
+.chat-options { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
+.chat-options button {
+  background:#2a1515; color:#ffd700; border:1px solid #8b0000;
+  border-radius:6px; padding:6px 8px; font-family:inherit; font-size:9px;
+  text-align:left; line-height:1.3;
+}
+.chat-options button:active { background:#3a0000; }
+/* QUEST */
+.quest {
+  background:#2a1515; border:1px solid #4a0000; border-left:3px solid #ffd700;
+  border-radius:4px; padding:6px;
+}
+.quest .q-title { font-size:10px; color:#ffd700; font-weight:bold; }
+.quest .q-desc { font-size:8px; color:#ccc; margin:2px 0; }
+.quest .q-reward { font-size:8px; color:#7f7; }
+.quest .q-progress { font-size:8px; color:#ff9800; margin-top:2px; }
+.quest button {
+  margin-top:4px; background:linear-gradient(180deg,#4caf50,#2e7d32);
+  color:#fff; border:1px solid #7f7; border-radius:3px; padding:4px 10px;
+  font-family:inherit; font-size:8px; font-weight:bold;
+}
+.quest button:disabled { background:#333; color:#666; border-color:#555; }
+/* TELEGRAM */
+.tg-post {
+  background:#17212b; border:1px solid #2b5278; border-radius:6px;
+  padding:6px 8px; font-size:9px; line-height:1.4;
+}
+.tg-post .tg-channel { font-size:8px; color:#5eb5f7; font-weight:bold; }
+.tg-post .tg-text { color:#d0d0d0; margin-top:2px; font-size:8px; }
+.tg-post .tg-meta { font-size:7px; color:#7d8e9e; margin-top:3px; display:flex; justify-content:space-between; }
+.tg-post.new { animation:tgIn 0.4s; }
+@keyframes tgIn { from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+/* LEADER */
+.leader {
+  display:flex; gap:6px; align-items:center;
+  background:#2a1515; border:1px solid #4a0000; border-radius:4px; padding:6px;
+}
+.leader .lav {
+  width:34px; height:34px; border-radius:50%; background:#8b0000;
+  border:2px solid #ffd700; display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.leader .linfo { flex:1; min-width:0; }
+.leader .lname { font-size:10px; color:#ffd700; font-weight:bold; }
+.leader .lbonus { font-size:8px; color:#7f7; }
+.leader .ldesc { font-size:7px; color:#aaa; margin-top:1px; }
+.leader.active .lav { box-shadow:0 0 8px #ffd700; }
+.leader button {
+  background:linear-gradient(180deg,#4caf50,#2e7d32); color:#fff;
+  border:1px solid #7f7; border-radius:3px; padding:4px 8px;
+  font-family:inherit; font-size:8px; font-weight:bold; flex-shrink:0;
+}
+.leader button:disabled { background:#333; color:#666; border-color:#555; }
+.star { color:#ffd700; }
+/* REFORM */
+.reform {
+  background:#101a2a; border:1px solid #1e4a7a; border-left:3px solid #5eb5f7;
+  border-radius:4px; padding:6px;
+}
+.reform .r-title { font-size:10px; color:#9ecbff; font-weight:bold; }
+.reform .r-desc { font-size:8px; color:#aac4dd; margin:2px 0; }
+.reform .r-effect { font-size:8px; color:#7f7; }
+.reform button {
+  margin-top:4px; background:linear-gradient(180deg,#1e4a7a,#153456);
+  color:#9ecbff; border:1px solid #5eb5f7; border-radius:3px;
+  padding:4px 10px; font-family:inherit; font-size:8px; font-weight:bold;
+}
+.reform button.active { background:linear-gradient(180deg,#4caf50,#2e7d32); color:#fff; border-color:#7f7; }
+.reform button:disabled { background:#333; color:#666; border-color:#555; }
+/* PLAN */
+.plan {
+  background:#2a2510; border:1px solid #7a6a1e; border-left:3px solid #ffd700;
+  border-radius:4px; padding:6px;
+}
+.plan .p-title { font-size:10px; color:#ffd700; font-weight:bold; }
+.plan .p-desc { font-size:8px; color:#ddd; margin:2px 0; }
+.plan .p-timer { font-size:8px; color:#ff9800; }
+.plan button {
+  margin-top:4px; background:linear-gradient(180deg,#b8860b,#8b6508);
+  color:#fff; border:1px solid #ffd700; border-radius:3px;
+  padding:4px 10px; font-family:inherit; font-size:8px; font-weight:bold;
+}
+.plan button:disabled { background:#333; color:#666; border-color:#555; }
+/* BIG CHAT BUTTON */
+.chat-big-btn {
+  background:linear-gradient(180deg,#c62828,#8b0000);
+  border:2px solid #ffd700; border-radius:8px;
+  padding:10px; text-align:center; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  box-shadow:0 0 10px rgba(255,215,0,0.4);
+}
+.chat-big-btn:active { transform:scale(0.97); }
+.chat-big-btn .cb-av { font-size:24px; }
+.chat-big-btn .cb-info { text-align:left; }
+.chat-big-btn .cb-title { font-size:11px; color:#ffd700; font-weight:bold; }
+.chat-big-btn .cb-sub { font-size:8px; color:#ffcc00; }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="header">
+    <div class="title">★ СССР ★</div>
+    <div class="era" id="h-era">Революция</div>
+    <div class="prestige-badge">⭐ <span id="h-prest">0</span></div>
+  </div>
+
+  <div id="resources">
+    <div class="res"><div class="row"><span class="icon">🔨</span><span class="val" id="r-labor">0</span></div><div class="rate" id="rate-labor"></div></div>
+    <div class="res"><div class="row"><span class="icon">🌾</span><span class="val" id="r-food">0</span></div><div class="rate" id="rate-food"></div></div>
+    <div class="res"><div class="row"><span class="icon">⚙️</span><span class="val" id="r-steel">0</span></div><div class="rate" id="rate-steel"></div></div>
+    <div class="res"><div class="row"><span class="icon">🔬</span><span class="val" id="r-science">0</span></div><div class="rate" id="rate-science"></div></div>
+  </div>
+
+  <div id="content"></div>
+
+  <div id="log"></div>
+  <div id="toast"></div>
+
+  <!-- Плавающая кнопка Сталина -->
+  <div id="stalin-fab" onclick="openChat()">
+    <div class="fab-av">🎩</div>
+    <div class="fab-label">СТАЛИН</div>
+    <div class="fab-badge" id="fab-badge">!</div>
+  </div>
+
+  <div id="tabs">
+    <button data-tab="build" class="active"><span class="ti">🏭</span>Строй</button>
+    <button data-tab="science"><span class="ti">🔬</span>Наука</button>
+    <button data-tab="reforms"><span class="ti">📊</span>Реформы</button>
+    <button data-tab="leaders"><span class="ti">👤</span>Вожди</button>
+    <button data-tab="quests"><span class="ti">📋</span>Задания</button>
+  </div>
+
+  <div id="footer">
+    <button id="btn-collect">СБОР</button>
+    <button id="btn-save">💾</button>
+    <button id="btn-reset">🔄</button>
+    <button class="prestige" id="btn-prestige">⭐ ПРЕСТИЖ</button>
+  </div>
+
+  <!-- Чат -->
+  <div class="modal-bg" id="modal-chat">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="mh-title">✉️ Связь с Кремлём</div>
+        <button class="mh-close" onclick="closeModal('modal-chat')">✕</button>
+      </div>
+      <div class="modal-body" id="chat-body"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const state = {
+  labor: 10, food: 10, steel: 0, science: 0,
+  prestige: 0, totalPrestige: 0, prestigeFrac: 0,
+  fiveYear: 1, currentEra: 0, lastSave: Date.now(),
+  buildings: {
+    farm:    { level:0, name:'Колхоз',    icon:'🌾', desc:'+1 хлеб/с',          baseCost:10,   costType:'labor', costMult:1.15 },
+    mine:    { level:0, name:'Шахта',     icon:'⛏️', desc:'+0.5 стали/с',       baseCost:50,   costType:'labor', costMult:1.2 },
+    factory: { level:0, name:'Завод',     icon:'🏭', desc:'+2 труда/с',         baseCost:30,   costType:'food',  costMult:1.18 },
+    power:   { level:0, name:'ГЭС',       icon:'⚡', desc:'+3 труда/с',         baseCost:150,  costType:'steel', costMult:1.25 },
+    school:  { level:0, name:'Школа',     icon:'📚', desc:'+10% произв. +0.5🔬', baseCost:200, costType:'steel', costMult:1.4 },
+    army:    { level:0, name:'Армия',     icon:'🎖️', desc:'+1 ⭐/мин',          baseCost:500,  costType:'steel', costMult:1.5 },
+    space:   { level:0, name:'Космос',    icon:'🚀', desc:'+5 ⭐/мин',          baseCost:2000, costType:'steel', costMult:1.6 },
+  },
+  techs: {
+    fiveyear: { name:'Пятилетки',     icon:'📅', desc:'+20% к производству', cost:50,  bought:false },
+    stakhanov:{ name:'Стахановец',    icon:'⚒️', desc:'x2 к сбору вручную',  cost:100, bought:false },
+    cosmos:   { name:'Космос',        icon:'🚀', desc:'+1 🔬/с',             cost:200, bought:false },
+    nuke:     { name:'Атомный проект',icon:'☢️', desc:'+50% стали',          cost:400, bought:false },
+    ideology: { name:'Идеология',     icon:'📕', desc:'+25% к престижу',     cost:600, bought:false },
+  },
+  leaders: {
+    lenin:   { name:'Ленин',    icon:'🚩', bonus:'+10% к сбору',    desc:'Отец революции.',           cost:0,    active:true,  unlocked:true },
+    stalin:  { name:'Сталин',   icon:'🎩', bonus:'+25% к труду',    desc:'Индустриализация.',         cost:100,  active:false, unlocked:false },
+    khrush:  { name:'Хрущёв',   icon:'🌽', bonus:'+30% к хлебу',    desc:'Кукуруза — царица полей!',  cost:300,  active:false, unlocked:false },
+    brezhnev:{ name:'Брежнев',  icon:'🎖️', bonus:'+20% к стали',    desc:'Эпоха стабильности.',       cost:600,  active:false, unlocked:false },
+    kosygin: { name:'Косыгин',  icon:'📊', bonus:'+30% к науке',    desc:'Экономическая реформа.',    cost:1000, active:false, unlocked:false },
+  },
+  reforms: {
+    selfsupport: { name:'Хозрасчёт',        icon:'💰', desc:'+25% к производству труда',       cost:200, active:false, bought:false },
+    profitability:{ name:'Рентабельность',  icon:'📈', desc:'+20% к хлебу и стали',           cost:400, active:false, bought:false },
+    material:    { name:'Материальное стимулирование', icon:'🎁', desc:'+50% к ручному сбору', cost:600, active:false, bought:false },
+  },
+  plans: [
+    { name:'Пятидневка',  desc:'x2 к производству на 30 сек',  duration:30,  mult:2,   cost:5,  icon:'⚡' },
+    { name:'Ударный труд', desc:'x3 к ручному сбору на 20 сек', duration:20,  mult:3,   cost:8,  icon:'💪' },
+    { name:'Космический рывок', desc:'x2 ко всем ресурсам на 60 сек', duration:60, mult:2, cost:15, icon:'🚀' },
+  ],
+  activePlan: null,
+  planEndTime: 0,
+  quests: [],
+  questsCompleted: 0,
+  tgPosts: [],
+  tgLastPost: 0,
+  chatHistory: [],
+  chatUnread: 0,
+  stats: { totalClicks:0, buildingsBought:0, questsDone:0 },
+};
+const INIT = JSON.parse(JSON.stringify(state));
+const ERAS = [
+  { name:'Революция', req:0 },
+  { name:'Индустриализация', req:100 },
+  { name:'Коллективизация', req:500 },
+  { name:'Великая Отечественная', req:2000 },
+  { name:'Космическая эра', req:10000 },
+  { name:'Развитой социализм', req:50000 },
+];
+
+function fmt(n){
+  n = Math.floor(n);
+  if (n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if (n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if (n>=1e4) return (n/1e3).toFixed(1)+'K';
+  return n.toString();
+}
+function roman(n){ const m=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII']; return m[n]||n; }
+function addLog(msg){
+  const log = document.getElementById('log');
+  const d = document.createElement('div'); d.textContent = '> '+msg;
+  log.appendChild(d); setTimeout(()=>d.remove(), 4000);
+}
+let toastT;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+function getProduction(){
+  const b = state.buildings;
+  const activeLeader = Object.values(state.leaders).find(l=>l.active);
+  const schoolMult = 1 + b.school.level*0.1;
+  const prestigeMult = 1 + state.prestige*0.05;
+  const techMult = state.techs.fiveyear.bought ? 1.2 : 1;
+  const planMult = (state.activePlan && Date.now() < state.planEndTime) ? state.activePlan.mult : 1;
+  const mult = schoolMult * prestigeMult * techMult * planMult;
+
+  let labor = (b.factory.level*2 + b.power.level*3) * mult;
+  let food  = (b.farm.level*1) * mult;
+  let steel = (b.mine.level*0.5) * mult;
+  let science = (b.school.level*0.5 + (state.techs.cosmos.bought?1:0)) * planMult;
+
+  if (activeLeader){
+    if (activeLeader.name==='Ленин') labor *= 1.1;
+    if (activeLeader.name==='Сталин') labor *= 1.25;
+    if (activeLeader.name==='Хрущёв') food *= 1.3;
+    if (activeLeader.name==='Брежнев') steel *= 1.2;
+    if (activeLeader.name==='Косыгин') science *= 1.3;
+  }
+  if (state.techs.nuke.bought) steel *= 1.5;
+  if (state.techs.ideology.bought) state.prestigeMult = 1.25; else state.prestigeMult = 1;
+
+  // Реформы Косыгина
+  if (state.reforms.selfsupport.active) labor *= 1.25;
+  if (state.reforms.profitability.active) { food *= 1.2; steel *= 1.2; }
+
+  return { labor, food, steel, science };
+}
+function getBuildingCost(b){
+  const cfg = state.buildings[b];
+  return Math.floor(cfg.baseCost * Math.pow(cfg.costMult, cfg.level));
+}
+function canAfford(b){ return state[state.buildings[b].costType] >= getBuildingCost(b); }
+function buyBuilding(b){
+  const cfg = state.buildings[b];
+  const cost = getBuildingCost(b);
+  if (state[cfg.costType] < cost) return false;
+  state[cfg.costType] -= cost;
+  cfg.level++;
+  state.stats.buildingsBought++;
+  addLog(`+${cfg.name} ур.${cfg.level}`);
+  checkEra(); updateUI();
+  return true;
+}
+function getPrestigePerMin(){
+  return (state.buildings.army.level*1 + state.buildings.space.level*5) * state.prestigeMult;
+}
+function collect(){
+  const stak = state.techs.stakhanov.bought ? 2 : 1;
+  const lenin = state.leaders.lenin.active ? 1.1 : 1;
+  const planMult = (state.activePlan && state.activePlan.name==='Ударный труд' && Date.now()<state.planEndTime) ? state.activePlan.mult : 1;
+  const reformMult = state.reforms.material.active ? 1.5 : 1;
+  const gain = Math.floor((5 + state.buildings.farm.level*2 + state.buildings.factory.level) * stak * lenin * planMult * reformMult);
+  state.labor += gain;
+  state.food += Math.floor(gain*0.5);
+  state.stats.totalClicks++;
+  addLog(`+${gain} 🔨`);
+  updateUI();
+}
+function checkEra(){
+  const total = state.labor + state.food + state.steel;
+  let newEra = 0;
+  for (let i=0;i<ERAS.length;i++) if (total >= ERAS[i].req) newEra = i;
+  if (newEra !== state.currentEra){
+    state.currentEra = newEra;
+    showToast(`Эпоха: ${ERAS[newEra].name}`);
+    pushTelegram(`Новая эпоха: ${ERAS[newEra].name}!`, 'Правда');
+  }
+  const fy = Math.floor(total/1000)+1;
+  if (fy !== state.fiveYear){
+    state.fiveYear = fy; state.prestige += 5;
+    showToast(`Пятилетка #${fy}! +5 ⭐`);
+    pushTelegram(`Пятилетка #${fy} завершена! +5⭐`, 'Правда');
+  }
+}
+function doPrestige(){
+  if (state.prestige < 50){ showToast('Нужно 50 ⭐'); return; }
+  if (!confirm('Престиж? Здания и ресурсы сбросятся, бонус +5% за очко останется.')) return;
+  const gained = Math.floor(state.prestige);
+  state.totalPrestige += gained;
+  state.labor=10; state.food=10; state.steel=0; state.science=0;
+  state.prestige=0; state.prestigeFrac=0; state.fiveYear=1; state.currentEra=0;
+  state.buildings = JSON.parse(JSON.stringify(INIT.buildings));
+  state.techs = JSON.parse(JSON.stringify(INIT.techs));
+  state.reforms = JSON.parse(JSON.stringify(INIT.reforms));
+  state.quests = []; state.questsCompleted = 0; state.stats = { totalClicks:0, buildingsBought:0, questsDone:0 };
+  state.leaders = JSON.parse(JSON.stringify(INIT.leaders));
+  state.leaders.lenin.active = true;
+  state.activePlan = null;
+  showToast(`Престиж! +${gained} ⭐`);
+  updateUI(); saveGame();
+}
+
+let currentTab = 'build';
+function updateUI(){
+  const r = getProduction();
+  document.getElementById('r-labor').textContent = fmt(state.labor);
+  document.getElementById('r-food').textContent = fmt(state.food);
+  document.getElementById('r-steel').textContent = fmt(state.steel);
+  document.getElementById('r-science').textContent = fmt(state.science);
+  document.getElementById('rate-labor').textContent = r.labor>0?'+'+r.labor.toFixed(1):'';
+  document.getElementById('rate-food').textContent = r.food>0?'+'+r.food.toFixed(1):'';
+  document.getElementById('rate-steel').textContent = r.steel>0?'+'+r.steel.toFixed(1):'';
+  document.getElementById('rate-science').textContent = r.science>0?'+'+r.science.toFixed(1):'';
+  document.getElementById('h-era').textContent = ERAS[state.currentEra].name;
+  document.getElementById('h-prest').textContent = state.prestige;
+  // FAB badge
+  const badge = document.getElementById('fab-badge');
+  if (state.chatUnread > 0){ badge.textContent = state.chatUnread; badge.classList.add('show'); }
+  else badge.classList.remove('show');
+  renderContent();
+}
+
+function renderContent(){
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+  if (currentTab==='build') renderBuild(c);
+  else if (currentTab==='science') renderScience(c);
+  else if (currentTab==='reforms') renderReforms(c);
+  else if (currentTab==='leaders') renderLeaders(c);
+  else if (currentTab==='quests') renderQuests(c);
+}
+
+function renderBuild(c){
+  const title = document.createElement('div');
+  title.className = 'section-title'; title.textContent = `Пятилетка ${roman(state.fiveYear)} — Стройка`;
+  c.appendChild(title);
+  ['farm','mine','factory','power','school','army','space'].forEach(key=>{
+    const cfg = state.buildings[key];
+    const cost = getBuildingCost(key);
+    const ok = canAfford(key);
+    const ci = cfg.costType==='labor'?'🔨':cfg.costType==='food'?'🌾':'⚙️';
+    const star = key==='army'||key==='space' ? ` <span class="star">⭐${getPrestigePerMin().toFixed(1)}/мин</span>` : '';
+    const div = document.createElement('div');
+    div.className = 'bld' + (ok?' afford':'');
+    div.innerHTML = `<div class="info"><div class="name">${cfg.icon} ${cfg.name}${star}</div><div class="desc">${cfg.desc} • ур. ${cfg.level}</div></div><button ${ok?'':'disabled'}>${ci} ${fmt(cost)}</button>`;
+    div.querySelector('button').onclick = ()=>{ if(buyBuilding(key)) updateUI(); };
+    c.appendChild(div);
+  });
+  // Активный план
+  if (state.activePlan && Date.now() < state.planEndTime){
+    const rem = Math.ceil((state.planEndTime - Date.now())/1000);
+    const planCard = document.createElement('div');
+    planCard.className = 'plan';
+    planCard.innerHTML = `<div class="p-title">${state.activePlan.icon} ${state.activePlan.name}</div><div class="p-desc">x${state.activePlan.mult} к производству</div><div class="p-timer">⏱ ${rem} сек</div>`;
+    c.appendChild(planCard);
+  }
+}
+
+function renderScience(c){
+  const title = document.createElement('div');
+  title.className = 'section-title'; title.textContent = `Наука 🔬 ${fmt(state.science)}`;
+  c.appendChild(title);
+  Object.entries(state.techs).forEach(([k,t])=>{
+    const div = document.createElement('div');
+    div.className = 'bld' + (t.bought?' afford':'');
+    const can = state.science >= t.cost && !t.bought;
+    div.innerHTML = `<div class="info"><div class="name">${t.icon} ${t.name}${t.bought?' ✅':''}</div><div class="desc">${t.desc}</div></div><button ${can?'':'disabled'}>${t.bought?'✓':'🔬'+t.cost}</button>`;
+    div.querySelector('button').onclick = ()=>{
+      if (state.science < t.cost) return;
+      state.science -= t.cost; t.bought = true;
+      addLog(`Исследование: ${t.name}`);
+      pushTelegram(`Учёные завершили: ${t.name}!`, 'Наука');
+      updateUI();
+    };
+    c.appendChild(div);
+  });
+}
+
+function renderReforms(c){
+  // Реформы Косыгина
+  const title = document.createElement('div');
+  title.className = 'section-title'; title.textContent = '📊 Реформы Косыгина';
+  c.appendChild(title);
+  const kosyginActive = state.leaders.kosygin.active;
+  if (!kosyginActive){
+    const hint = document.createElement('div');
+    hint.className = 'card';
+    hint.innerHTML = `<div class="text">Реформы доступны, когда Косыгин станет лидером (вкладка «Вожди»).</div>`;
+    c.appendChild(hint);
+  }
+  Object.entries(state.reforms).forEach(([k,r])=>{
+    const div = document.createElement('div');
+    div.className = 'reform';
+    let btnText, btnDisabled;
+    if (!r.bought){
+      btnText = `🔬 ${r.cost}`;
+      btnDisabled = !kosyginActive || state.science < r.cost;
+    } else {
+      btnText = r.active ? 'АКТИВНО ✓' : 'ВКЛЮЧИТЬ';
+      btnDisabled = false;
+    }
+    div.innerHTML = `<div class="r-title">${r.icon} ${r.name}</div><div class="r-desc">${r.desc}</div><div class="r-effect">${r.bought && r.active ? '✅ Активна' : ''}</div><button class="${r.active?'active':''}" ${btnDisabled?'disabled':''}>${btnText}</button>`;
+    div.querySelector('button').onclick = ()=>{
+      if (!r.bought){
+        if (state.science < r.cost) return;
+        state.science -= r.cost; r.bought = true;
+        addLog(`Реформа: ${r.name}`);
+        pushTelegram(`Косыгин запустил: ${r.name}!`, 'Экономика');
+      } else {
+        r.active = !r.active;
+        addLog(`${r.name}: ${r.active?'вкл':'выкл'}`);
+      }
+      updateUI();
+    };
+    c.appendChild(div);
+  });
+
+  // Планы (краткосрочные бусты)
+  const title2 = document.createElement('div');
+  title2.className = 'section-title'; title2.textContent = '⭐ Планы (бусты за престиж)';
+  c.appendChild(title2);
+  state.plans.forEach(p=>{
+    const div = document.createElement('div');
+    div.className = 'plan';
+    const active = state.activePlan && state.activePlan.name===p.name && Date.now()<state.planEndTime;
+    div.innerHTML = `<div class="p-title">${p.icon} ${p.name}</div><div class="p-desc">${p.desc}</div><button ${state.prestige>=p.cost && !active ? '' : 'disabled'}>${active?'АКТИВЕН':'⭐'+p.cost}</button>`;
+    div.querySelector('button').onclick = ()=>{
+      if (state.prestige < p.cost) return;
+      state.prestige -= p.cost;
+      state.activePlan = p;
+      state.planEndTime = Date.now() + p.duration*1000;
+      addLog(`План: ${p.name}`);
+      showToast(`${p.icon} ${p.name} активирован!`);
+      updateUI();
+    };
+    c.appendChild(div);
+  });
+}
+
+function renderLeaders(c){
+  const title = document.createElement('div');
+  title.className = 'section-title'; title.textContent = 'Вожди и лидеры';
+  c.appendChild(title);
+  Object.entries(state.leaders).forEach(([k,l])=>{
+    const div = document.createElement('div');
+    div.className = 'leader' + (l.active?' active':'');
+    let btn;
+    if (l.active) btn = `<button disabled>Активен</button>`;
+    else if (!l.unlocked) btn = `<button onclick="unlockLeader('${k}')" ${state.prestige>=l.cost?'':'disabled'}>⭐${l.cost}</button>`;
+    else btn = `<button onclick="setLeader('${k}')">Выбрать</button>`;
+    div.innerHTML = `<div class="lav">${l.icon}</div><div class="linfo"><div class="lname">${l.name}</div><div class="lbonus">${l.bonus}</div><div class="ldesc">${l.desc}</div></div>${btn}`;
+    c.appendChild(div);
+  });
+}
+
+function renderQuests(c){
+  const title = document.createElement('div');
+  title.className = 'section-title'; title.textContent = 'Задания Сталина';
+  c.appendChild(title);
+
+  // Большая кнопка чата
+  const bigBtn = document.createElement('div');
+  bigBtn.className = 'chat-big-btn';
+  bigBtn.onclick = openChat;
+  const unreadBadge = state.chatUnread > 0 ? ` (${state.chatUnread})` : '';
+  bigBtn.innerHTML = `<div class="cb-av">🎩</div><div class="cb-info"><div class="cb-title">✉️ ЧАТ СО СТАЛИНЫМ${unreadBadge}</div><div class="cb-sub">Нажмите, чтобы получить задание</div></div>`;
+  c.appendChild(bigBtn);
+
+  if (state.quests.length===0){
+    const e = document.createElement('div');
+    e.className='card'; e.innerHTML = `<div class="text">Нет активных заданий. Нажмите кнопку выше — Сталин выдаст задание.</div>`;
+    c.appendChild(e);
+  } else {
+    state.quests.forEach((q,i)=>{
+      const div = document.createElement('div');
+      div.className = 'quest';
+      const done = isQuestDone(q);
+      div.innerHTML = `<div class="q-title">${q.icon} ${q.title}</div><div class="q-desc">${q.desc}</div><div class="q-progress">${questProgressText(q)}</div><div class="q-reward">Награда: ${q.rewardText}</div><button ${done?'':'disabled'} onclick="claimQuest(${i})">${done?'ЗАБРАТЬ':'В ПРОЦЕССЕ'}</button>`;
+      c.appendChild(div);
+    });
+  }
+}
+
+function unlockLeader(k){
+  const l = state.leaders[k];
+  if (state.prestige < l.cost) return;
+  state.prestige -= l.cost;
+  l.unlocked = true;
+  addLog(`Разблокирован: ${l.name}`);
+  pushTelegram(`Новый лидер доступен: ${l.name}`, 'Правда');
+  updateUI();
+}
+function setLeader(k){
+  const l = state.leaders[k];
+  if (!l.unlocked) return;
+  Object.values(state.leaders).forEach(x=>x.active=false);
+  l.active = true;
+  addLog(`Лидер: ${l.name}`);
+  updateUI();
+}
+
+function generateQuest(){
+  const types = [
+    { type:'collect', icon:'🔨', title:'Собери ресурсы', desc:()=>`Соберите ${50+state.questsCompleted*30} 🔨 вручную`, goal:()=>50+state.questsCompleted*30, metric:()=>state.stats.totalClicks*5, reward:()=>({prestige:5, science:10}) },
+    { type:'build', icon:'🏭', title:'Построй здания', desc:()=>`Постройте ${3+state.questsCompleted} зданий`, goal:()=>3+state.questsCompleted, metric:()=>state.stats.buildingsBought, reward:()=>({prestige:8, science:15}) },
+    { type:'farm', icon:'🌾', title:'Хлеб — всему голова', desc:()=>`Доведите Колхозы до ур. ${2+state.questsCompleted}`, goal:()=>2+state.questsCompleted, metric:()=>state.buildings.farm.level, reward:()=>({prestige:10, food:200}) },
+    { type:'factory', icon:'🏭', title:'Индустриализация', desc:()=>`Доведите Заводы до ур. ${2+state.questsCompleted}`, goal:()=>2+state.questsCompleted, metric:()=>state.buildings.factory.level, reward:()=>({prestige:10, labor:300}) },
+    { type:'army', icon:'🎖️', title:'Укрепим оборону', desc:()=>`Доведите Армию до ур. ${1+Math.floor(state.questsCompleted/2)}`, goal:()=>1+Math.floor(state.questsCompleted/2), metric:()=>state.buildings.army.level, reward:()=>({prestige:15}) },
+    { type:'science', icon:'🔬', title:'Наука — двигатель', desc:()=>`Накопите ${100+state.questsCompleted*50} 🔬`, goal:()=>100+state.questsCompleted*50, metric:()=>state.science, reward:()=>({prestige:12, science:50}) },
+  ];
+  const t = types[Math.floor(Math.random()*types.length)];
+  return {
+    type: t.type, icon: t.icon, title: t.title,
+    desc: t.desc(), goal: t.goal(),
+    reward: t.reward(), rewardText: formatReward(t.reward()),
+    claimed: false
+  };
+}
+function formatReward(r){
+  const parts = [];
+  if (r.prestige) parts.push(`⭐${r.prestige}`);
+  if (r.science) parts.push(`🔬${r.science}`);
+  if (r.food) parts.push(`🌾${r.food}`);
+  if (r.labor) parts.push(`🔨${r.labor}`);
+  return parts.join(' ');
+}
+function questProgressValue(q){
+  switch(q.type){
+    case 'collect': return state.stats.totalClicks*5;
+    case 'build': return state.stats.buildingsBought;
+    case 'farm': return state.buildings.farm.level;
+    case 'factory': return state.buildings.factory.level;
+    case 'army': return state.buildings.army.level;
+    case 'science': return state.science;
+  }
+  return 0;
+}
+function isQuestDone(q){ return questProgressValue(q) >= q.goal; }
+function questProgressText(q){
+  const v = questProgressValue(q);
+  return `Прогресс: ${Math.min(v,q.goal)} / ${q.goal}${isQuestDone(q)?' ✅':''}`;
+}
+function claimQuest(i){
+  const q = state.quests[i];
+  if (!isQuestDone(q)) return;
+  const r = q.reward;
+  if (r.prestige) state.prestige += r.prestige;
+  if (r.science) state.science += r.science;
+  if (r.food) state.food += r.food;
+  if (r.labor) state.labor += r.labor;
+  state.quests.splice(i,1);
+  state.questsCompleted++;
+  state.stats.questsDone++;
+  addLog(`Задание выполнено: ${q.title}`);
+  pushTelegram(`Задание выполнено: «${q.title}». Награда: ${q.rewardText}`, 'Правда');
+  showToast(`Награда: ${q.rewardText}`);
+  updateUI();
+}
+
+function openChat(){
+  document.getElementById('modal-chat').classList.add('show');
+  state.chatUnread = 0;
+  updateUI();
+  renderChat();
+}
+function renderChat(){
+  const body = document.getElementById('chat-body');
+  body.innerHTML = '';
+
+  if (state.chatHistory.length===0){
+    state.chatHistory.push({ from:'stalin', text:'Товарищ! Рад видеть вас на посту. Пятилетку надо выполнить досрочно. Чем могу помочь?' });
+  }
+
+  state.chatHistory.forEach(m=>{
+    const d = document.createElement('div');
+    d.className = 'chat-msg ' + m.from;
+    const av = m.from==='stalin' ? '🎩' : m.from==='kosygin' ? '📊' : '👤';
+    const sender = m.from==='stalin' ? 'И.В. Сталин' : m.from==='kosygin' ? 'А.Н. Косыгин' : '';
+    d.innerHTML = `<div class="avatar">${av}</div><div class="bubble">${sender?`<div class="sender">${sender}</div>`:''}${m.text}</div>`;
+    body.appendChild(d);
+  });
+
+  const opts = document.createElement('div');
+  opts.className = 'chat-options';
+
+  const o1 = document.createElement('button');
+  o1.textContent = '📋 Дайте задание, товарищ Сталин!';
+  o1.onclick = ()=>{
+    if (state.quests.length >= 3){ showToast('Слишком много заданий'); return; }
+    const q = generateQuest();
+    state.quests.push(q);
+    state.chatHistory.push({ from:'stalin', text:`Задание: «${q.title}». ${q.desc}. Награда: ${q.rewardText}. Выполните — и доложите!` });
+    addLog('Новое задание от Сталина');
+    renderChat(); updateUI();
+  };
+  opts.appendChild(o1);
+
+  const o2 = document.createElement('button');
+  o2.textContent = '📊 Доложить об успехах';
+  o2.onclick = ()=>{
+    const total = state.labor + state.food + state.steel;
+    const era = ERAS[state.currentEra].name;
+    state.chatHistory.push({ from:'stalin', text:`Так, товарищ. Эпоха: ${era}. Ресурсов: ${fmt(total)}. Пятилеток: ${state.fiveYear}. Хорошо работаете!` });
+    renderChat();
+  };
+  opts.appendChild(o2);
+
+  const o3 = document.createElement('button');
+  o3.textContent = '📊 Спросить Косыгина о реформах';
+  o3.onclick = ()=>{
+    if (!state.leaders.kosygin.unlocked){
+      state.chatHistory.push({ from:'stalin', text:`Косыгин пока занят. Откройте его как лидера за ⭐1000 — и он предложит реформы.` });
+    } else {
+      const active = Object.values(state.reforms).filter(r=>r.active).length;
+      state.chatHistory.push({ from:'kosygin', text:`Товарищ! Реформы — путь к эффективности. Активных реформ: ${active}. Вкладка «Реформы» внизу.` });
+    }
+    renderChat();
+  };
+  opts.appendChild(o3);
+
+  const o4 = document.createElement('button');
+  o4.textContent = '⭐ Спросить о престиже';
+  o4.onclick = ()=>{
+    if (state.prestige < 50){
+      state.chatHistory.push({ from:'stalin', text:`Товарищ, для престижа нужно 50 ⭐. У вас ${state.prestige}. Работайте!` });
+    } else {
+      state.chatHistory.push({ from:'stalin', text:`У вас ${state.prestige} ⭐. Можете совершить престиж. Но не забывайте о пятилетке!` });
+    }
+    renderChat();
+  };
+  opts.appendChild(o4);
+
+  const o5 = document.createElement('button');
+  o5.textContent = '🚪 Уйти';
+  o5.onclick = ()=>closeModal('modal-chat');
+  opts.appendChild(o5);
+
+  body.appendChild(opts);
+}
+
+const TG_TEMPLATES = [
+  { ch:'Правда', text:'Товарищи! Выполнение пятилетки идёт досрочно. Так держать!' },
+  { ch:'Правда', text:'Колхозы страны перевыполнили план по хлебу на 15%.' },
+  { ch:'Наука',  text:'Советские учёные совершили прорыв в области физики.' },
+  { ch:'Правда', text:'Стахановцы показывают рекорды производительности труда.' },
+  { ch:'Спорт',  text:'Сборная СССР завоевала золото на международных соревнованиях!' },
+  { ch:'Космос', text:'Ракета «Восток» успешно прошла испытания.' },
+  { ch:'Правда', text:'Товарищ Сталин призвал крепить оборону и дисциплину.' },
+  { ch:'Наука',  text:'Академия наук СССР расширяет исследования.' },
+  { ch:'Правда', text:'Новый завод введён в эксплуатацию! План перевыполнен.' },
+  { ch:'Космос', text:'Советский спутник передал сигнал с орбиты. Ура!' },
+  { ch:'Экономика', text:'Косыгин: хозрасчёт повысит эффективность предприятий.' },
+  { ch:'Экономика', text:'Реформа рентабельности даёт первые результаты.' },
+  { ch:'Космос', text:'Первый человек в космосе — гражданин СССР!' },
+];
+function pushTelegram(text, channel='Правда'){
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  state.tgPosts.push({ channel, text, time, views:Math.floor(Math.random()*900+100), isNew:true });
+  if (state.tgPosts.length > 30) state.tgPosts.shift();
+}
+
+function saveGame(){
+  state.lastSave = Date.now();
+  try { localStorage.setItem('ussr_tycoon_v3', JSON.stringify(state)); addLog('Сохранено'); } catch(e){}
+}
+function loadGame(){
+  try {
+    const raw = localStorage.getItem('ussr_tycoon_v3') || localStorage.getItem('ussr_tycoon_v2');
+    if (!raw) return;
+    const l = JSON.parse(raw);
+    Object.assign(state, l);
+    if (l.buildings) for (const k in state.buildings) if (l.buildings[k]) state.buildings[k].level = l.buildings[k].level||0;
+    if (l.techs) for (const k in state.techs) if (l.techs[k]) state.techs[k].bought = !!l.techs[k].bought;
+    if (l.reforms) for (const k in state.reforms) if (l.reforms[k]) { state.reforms[k].bought = !!l.reforms[k].bought; state.reforms[k].active = !!l.reforms[k].active; }
+    if (!state.stats) state.stats = { totalClicks:0, buildingsBought:0, questsDone:0 };
+    // Убираем Горбачёва если он остался со старой версии
+    if (state.leaders.gorbach) delete state.leaders.gorbach;
+    if (!state.leaders.kosygin) state.leaders.kosygin = JSON.parse(JSON.stringify(INIT.leaders.kosygin));
+    const off = Math.min((Date.now()-(state.lastSave||Date.now()))/1000, 8*3600);
+    if (off>60){
+      const r = getProduction();
+      state.labor += r.labor*off; state.food += r.food*off; state.steel += r.steel*off; state.science += r.science*off;
+      addLog(`Оффлайн: +${fmt(r.labor*off)} 🔨`);
+    }
+  } catch(e){ console.warn('Load error', e); }
+}
+function resetGame(){
+  if (!confirm('Сбросить весь прогресс?')) return;
+  localStorage.removeItem('ussr_tycoon_v3'); localStorage.removeItem('ussr_tycoon_v2'); location.reload();
+}
+
+let lastTick = Date.now();
+function gameTick(){
+  const now = Date.now();
+  const dt = Math.min((now-lastTick)/1000, 1);
+  lastTick = now;
+  const r = getProduction();
+  state.labor += r.labor*dt;
+  state.food  += r.food*dt;
+  state.steel += r.steel*dt;
+  state.science += r.science*dt;
+  const ppm = getPrestigePerMin();
+  if (ppm>0){
+    state.prestigeFrac += (ppm/60)*dt;
+    if (state.prestigeFrac>=1){ const g=Math.floor(state.prestigeFrac); state.prestige+=g; state.prestigeFrac-=g; }
+  }
+  // Конец плана
+  if (state.activePlan && now > state.planEndTime){
+    addLog(`План «${state.activePlan.name}» завершён`);
+    state.activePlan = null;
+  }
+  checkEra(); updateUI();
+  if (now - state.tgLastPost > 25000 + Math.random()*20000){
+    state.tgLastPost = now;
+    const t = TG_TEMPLATES[Math.floor(Math.random()*TG_TEMPLATES.length)];
+    pushTelegram(t.text, t.ch);
+  }
+  if (now - state.lastSave > 30000) saveGame();
+}
+
+document.querySelectorAll('#tabs button').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    renderContent();
+  };
+});
+
+function init(){
+  loadGame();
+  document.getElementById('btn-collect').onclick = ()=>{ collect(); saveGame(); };
+  document.getElementById('btn-save').onclick = saveGame;
+  document.getElementById('btn-reset').onclick = resetGame;
+  document.getElementById('btn-prestige').onclick = doPrestige;
+
+  if (state.tgPosts.length===0){
+    pushTelegram('Товарищи! Добро пожаловать в канал «Правда».', 'Правда');
+    pushTelegram('Стройте социализм вместе с нами!', 'Правда');
+  }
+  state.tgLastPost = Date.now();
+
+  updateUI();
+  setInterval(gameTick, 100);
+  setInterval(saveGame, 30000);
+  addLog('Добро пожаловать, товарищ!');
+}
+init();
+</script>
+</body>
+</html>
